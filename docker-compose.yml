@@ -1,0 +1,157 @@
+
+# Run in orchestration mode (starts orchestrator-service too):
+#   SAGA_MODE=orchestration docker compose --profile orchestration up --build
+#
+# Run in choreography mode (no orchestrator container at all):
+#   SAGA_MODE=choreography docker compose up --build
+#
+# SAGA_MODE has no default on purpose -- it drives which set of @Profile-gated beans
+# activate in catalog/approval/payment-service, and running with the wrong one silently
+# breaks the saga (e.g. participants waiting for commands nobody sends), so we'd rather
+# fail fast with a clear message than guess.
+
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: gearshare-postgres
+    environment:
+      POSTGRES_USER: gearshare
+      POSTGRES_PASSWORD: gearshare
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./infra/postgres-init:/docker-entrypoint-initdb.d
+      - gearshare-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gearshare"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  kafka:
+    image: apache/kafka:3.8.0
+    container_name: gearshare-kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+
+  catalog-service:
+    build:
+      context: .
+      dockerfile: catalog-service/Dockerfile
+    container_name: gearshare-catalog
+    ports:
+      - "8081:8081"
+    environment:
+      DB_HOST: postgres
+      KAFKA_BOOTSTRAP: kafka:9092
+      SPRING_PROFILES_ACTIVE: ${SAGA_MODE:?Set SAGA_MODE to "orchestration" or "choreography", e.g. SAGA_MODE=choreography docker compose up}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+
+  approval-service:
+    build:
+      context: .
+      dockerfile: approval-service/Dockerfile
+    container_name: gearshare-approval
+    ports:
+      - "8082:8082"
+    environment:
+      DB_HOST: postgres
+      KAFKA_BOOTSTRAP: kafka:9092
+      SPRING_PROFILES_ACTIVE: ${SAGA_MODE:?Set SAGA_MODE to "orchestration" or "choreography", e.g. SAGA_MODE=choreography docker compose up}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+
+  payment-service:
+    build:
+      context: .
+      dockerfile: payment-service/Dockerfile
+    container_name: gearshare-payment
+    ports:
+      - "8083:8083"
+    environment:
+      DB_HOST: postgres
+      KAFKA_BOOTSTRAP: kafka:9092
+      SPRING_PROFILES_ACTIVE: ${SAGA_MODE:?Set SAGA_MODE to "orchestration" or "choreography", e.g. SAGA_MODE=choreography docker compose up}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+
+  handover-service:
+    build:
+      context: .
+      dockerfile: handover-service/Dockerfile
+    container_name: gearshare-handover
+    ports:
+      - "8084:8084"
+    environment:
+      DB_HOST: postgres
+      KAFKA_BOOTSTRAP: kafka:9092
+      SPRING_PROFILES_ACTIVE: ${SAGA_MODE:?Set SAGA_MODE to "orchestration" or "choreography", e.g. SAGA_MODE=choreography docker compose up}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+
+  booking-service:
+    build:
+      context: .
+      dockerfile: booking-service/Dockerfile
+    container_name: gearshare-booking
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST: postgres
+      KAFKA_BOOTSTRAP: kafka:9092
+      SPRING_PROFILES_ACTIVE: ${SAGA_MODE:?Set SAGA_MODE to "orchestration" or "choreography", e.g. SAGA_MODE=choreography docker compose up}
+      # Optional -- falls back to application.yml's own default if you don't set this.
+      JWT_SECRET: ${JWT_SECRET:-e+q6jjepNeTVuiEfZ0GocmlkjQ2r/6Q4e9PMxcMWYIQ=}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+
+  orchestrator-service:
+    build:
+      context: .
+      dockerfile: orchestrator-service/Dockerfile
+    container_name: gearshare-orchestrator
+    profiles: ["orchestration"]
+    ports:
+      - "8085:8085"
+    environment:
+      DB_HOST: postgres
+      KAFKA_BOOTSTRAP: kafka:9092
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+
+volumes:
+  gearshare-postgres-data:

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.gearshare</groupId>
+        <artifactId>gearshare-saga</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>common-events</artifactId>
+    <packaging>jar</packaging>
+    <name>common-events</name>
+    <description>
+        Shared library of event and command records passed over Kafka between all
+        GearShare services, plus the Topics registry naming every topic in the system.
+        This module has NO Spring dependency on purpose -- it's pure Java records so any
+        service (and even a non-Java consumer reading the JSON) can reason about the
+        message contracts without pulling in a framework.
+    </description>
+
+    <dependencies>
+        <!-- Jackson annotations only, for clean JSON (de)serialization of the records -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+        </dependency>
+    </dependencies>
+</project>

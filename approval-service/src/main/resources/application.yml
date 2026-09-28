@@ -1,0 +1,41 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: approval-service
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:5432/approval_db
+    username: gearshare
+    password: gearshare
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    consumer:
+      group-id: approval-service
+      auto-offset-reset: earliest
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.gearshare.events.*"
+    producer:
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+# How long the simulated owner has to respond before the sweep times the request out,
+# and how often the sweep checks. Turned down to 60s/10s (vs. real-world hours) so you
+# don't have to wait long to see the timeout path during a demo.
+approval:
+  timeout-seconds: 60
+  sweep-interval-ms: 10000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    com.gearshare: INFO

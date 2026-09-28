@@ -1,0 +1,580 @@
+<title>GearShare Saga</title>
+<style>
+  :root {
+    --surface: #f5f6f4;
+    --surface-raised: #ffffff;
+    --surface-sunken: #eceeea;
+    --text: #1a1d1b;
+    --text-dim: #5c6359;
+    --border: #dde1d9;
+    --accent: #2f6c8a;       /* signal-blue: forward saga steps */
+    --accent-ink: #ffffff;
+    --compensate: #b1541f;   /* gear-tag rust: compensating / rollback steps */
+    --compensate-soft: #f2e2d6;
+    --accent-soft: #dfeaf0;
+    --mono-bg: #eef0ec;
+    --shadow: 0 1px 2px rgba(20, 25, 20, 0.06), 0 4px 14px rgba(20, 25, 20, 0.05);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --surface: #14181a;
+      --surface-raised: #1c2225;
+      --surface-sunken: #10161a;
+      --text: #e8ebe6;
+      --text-dim: #9aa39a;
+      --border: #2a3134;
+      --accent: #6fb3d6;
+      --accent-ink: #0c1618;
+      --compensate: #e2925c;
+      --compensate-soft: #3a2a1f;
+      --accent-soft: #1c333d;
+      --mono-bg: #101617;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --surface: #14181a;
+    --surface-raised: #1c2225;
+    --surface-sunken: #10161a;
+    --text: #e8ebe6;
+    --text-dim: #9aa39a;
+    --border: #2a3134;
+    --accent: #6fb3d6;
+    --accent-ink: #0c1618;
+    --compensate: #e2925c;
+    --compensate-soft: #3a2a1f;
+    --accent-soft: #1c333d;
+    --mono-bg: #101617;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--surface);
+    color: var(--text);
+    font-family: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+
+  .page {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 4rem 1.5rem 6rem;
+  }
+
+  h1, h2, h3 {
+    font-family: "Big Shoulders Display", "Archivo Narrow", sans-serif;
+    text-transform: uppercase;
+    text-wrap: balance;
+    letter-spacing: 0.01em;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 0.6em;
+  }
+  .eyebrow::before {
+    content: "";
+    width: 1.4em;
+    height: 1px;
+    background: var(--accent);
+  }
+
+  header.masthead {
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+    padding-bottom: 2.5rem;
+    margin-bottom: 3rem;
+    border-bottom: 1px solid var(--border);
+  }
+  header.masthead h1 {
+    font-size: clamp(2.4rem, 6vw, 3.4rem);
+    line-height: 0.95;
+    margin: 0;
+  }
+  header.masthead .dek {
+    max-width: 62ch;
+    color: var(--text-dim);
+    font-size: 1.05rem;
+  }
+  .tagrow {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-top: 0.4rem;
+  }
+  .tag {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.72rem;
+    padding: 0.3em 0.7em;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text-dim);
+    background: var(--surface-raised);
+  }
+
+  section { margin-bottom: 3.4rem; }
+  section h2 {
+    font-size: 1.5rem;
+    margin: 0 0 0.9rem;
+  }
+  section > .eyebrow { margin-bottom: 0.5rem; }
+
+  p { color: var(--text); max-width: 68ch; }
+  p.dim { color: var(--text-dim); }
+
+  .callout {
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    background: var(--accent-soft);
+    padding: 1rem 1.2rem;
+    border-radius: 4px;
+    font-size: 0.95rem;
+    max-width: 68ch;
+  }
+  .callout.warn {
+    border-left-color: var(--compensate);
+    background: var(--compensate-soft);
+  }
+  .callout p { margin: 0; }
+  .callout p + p { margin-top: 0.6em; }
+
+  .diagram {
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1.4rem;
+    box-shadow: var(--shadow);
+    overflow-x: auto;
+  }
+  .diagram-caption {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-top: 0.6rem;
+    letter-spacing: 0.02em;
+  }
+
+  .split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.1rem;
+  }
+  @media (max-width: 700px) {
+    .split { grid-template-columns: 1fr; }
+  }
+  .mode-card {
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1.3rem 1.4rem;
+    box-shadow: var(--shadow);
+  }
+  .mode-card h3 {
+    font-size: 1.1rem;
+    margin: 0 0 0.5rem;
+    display: flex;
+    align-items: baseline;
+    gap: 0.5em;
+  }
+  .mode-card h3 .who {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    text-transform: none;
+    font-size: 0.68rem;
+    color: var(--text-dim);
+    letter-spacing: 0.04em;
+  }
+  .mode-card ol {
+    margin: 0.6em 0 0;
+    padding-left: 1.2em;
+    font-size: 0.92rem;
+  }
+  .mode-card li { margin-bottom: 0.4em; }
+  .mode-card li b { color: var(--accent); }
+  .mode-card.choreo li b { color: var(--compensate); }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.86rem;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  thead th {
+    text-align: left;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    background: var(--surface-sunken);
+    padding: 0.65em 0.9em;
+    border-bottom: 1px solid var(--border);
+  }
+  tbody td {
+    padding: 0.6em 0.9em;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td code, li code, p code {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    background: var(--mono-bg);
+    padding: 0.1em 0.4em;
+    border-radius: 3px;
+    font-size: 0.88em;
+  }
+  .table-wrap { overflow-x: auto; }
+  .mode-pill {
+    display: inline-block;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.68rem;
+    padding: 0.15em 0.55em;
+    border-radius: 3px;
+  }
+  .mode-pill.both { background: var(--surface-sunken); color: var(--text-dim); }
+  .mode-pill.orch { background: var(--accent-soft); color: var(--accent); }
+  .mode-pill.choreo { background: var(--compensate-soft); color: var(--compensate); }
+
+  .trylist {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+  }
+  .try {
+    display: grid;
+    grid-template-columns: 2.6rem 1fr;
+    gap: 0.9rem;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.9rem 1.1rem;
+    box-shadow: var(--shadow);
+  }
+  .try .n {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    color: var(--accent);
+    font-size: 0.95rem;
+    padding-top: 0.1em;
+  }
+  .try h4 { margin: 0 0 0.25em; font-size: 0.98rem; font-family: inherit; text-transform: none; letter-spacing: 0; font-weight: 700; }
+  .try p { margin: 0; font-size: 0.88rem; color: var(--text-dim); }
+
+  pre.code {
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem 1.2rem;
+    overflow-x: auto;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.82rem;
+    line-height: 1.55;
+    color: var(--text);
+  }
+  pre.code .c { color: var(--text-dim); }
+
+  .notes {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .note {
+    border-left: 3px solid var(--border);
+    padding-left: 1rem;
+  }
+  .note h4 {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    text-transform: none;
+    font-size: 0.85rem;
+    font-weight: 700;
+    margin: 0 0 0.3em;
+    color: var(--text);
+  }
+  .note p { font-size: 0.88rem; color: var(--text-dim); margin: 0; }
+
+  footer {
+    margin-top: 4rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.82rem;
+    color: var(--text-dim);
+  }
+
+  .mermaid { font-family: "Source Sans 3", sans-serif !important; }
+</style>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Source+Sans+3:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<div class="page">
+
+  <header class="masthead">
+    <div class="eyebrow">Architecture Reference</div>
+    <h1>GearShare Saga</h1>
+    <p class="dek">A peer-to-peer gear rental marketplace, built as seven Spring Boot
+      services to teach microservices, message-driven architecture, and the saga
+      pattern &mdash; the same rental-request flow wired up twice, once orchestrated and
+      once choreographed, so the two styles can be compared directly instead of taken on
+      faith.</p>
+    <div class="tagrow">
+      <span class="tag">java 21</span>
+      <span class="tag">spring boot 3.3</span>
+      <span class="tag">kafka</span>
+      <span class="tag">postgres</span>
+      <span class="tag">7 modules</span>
+    </div>
+  </header>
+
+  <section>
+    <div class="eyebrow">Why gear rental</div>
+    <h2>Two acts, two lessons</h2>
+    <p>A rental has a natural two-part structure, and each part teaches something
+      different. <b>Saga&nbsp;#1 &mdash; placing a request</b> (booking&nbsp;&rarr;
+      catalog&nbsp;&rarr; approval&nbsp;&rarr; payment) has three participants that must
+      agree in sequence, one of whom is a human who might never respond. It's built
+      <em>both ways</em> below. <b>Saga&nbsp;#2 &mdash; fulfillment</b> (handover reports
+      pickup/return, payment captures or partially captures) is what makes payment
+      <em>holds</em> versus <em>captures</em> concrete: saga&nbsp;#1 only ever authorizes a
+      hold against a card; saga&nbsp;#2 is what turns it into real money, in full or
+      reduced by a damage deduction.</p>
+  </section>
+
+  <section>
+    <div class="eyebrow">System map</div>
+    <h2>Six services, one shared vocabulary</h2>
+    <p>Every arrow into Kafka is asynchronous &mdash; no service ever calls another
+      service's REST API directly. Services are coupled only to event and command
+      <em>shapes</em>, defined once in the <code>common-events</code> module, never to
+      each other's network address or uptime.</p>
+    <div class="diagram">
+      <pre class="mermaid">
+flowchart LR
+    U["You, via curl"]
+    U -->|"POST /api/rentals"| BOOK["booking-service :8080"]
+    U -->|"POST decision"| APR["approval-service :8082"]
+    U -->|"POST pickup / return"| HAND["handover-service :8084"]
+
+    BOOK <-->|Kafka| K[("Kafka")]
+    CAT["catalog-service :8081"] <-->|Kafka| K
+    APR <-->|Kafka| K
+    PAY["payment-service :8083"] <-->|Kafka| K
+    HAND <-->|Kafka| K
+    ORCH["orchestrator-service :8085\n(orchestration mode only)"] <-->|Kafka| K
+
+    BOOK --- BDB[("booking_db")]
+    CAT --- CDB[("catalog_db")]
+    APR --- ADB[("approval_db")]
+    PAY --- PDB[("payment_db")]
+    HAND --- HDB[("handover_db")]
+    ORCH --- ODB[("orchestrator_db")]
+      </pre>
+    </div>
+    <div class="diagram-caption">one database per service &mdash; even sharing one Postgres container, nothing crosses a schema boundary</div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Saga #1, two ways</div>
+    <h2>Orchestration vs. choreography</h2>
+    <p>Same three participants, same outcome, two different ways of getting there. Run
+      both from the same codebase with one environment variable and watch the log
+      output diverge.</p>
+
+    <div class="split">
+      <div class="mode-card orch">
+        <h3>Orchestration <span class="who">orchestrator-service decides</span></h3>
+        <ol>
+          <li>booking &rarr; <b>orchestrator</b>: RentalRequested</li>
+          <li>orchestrator &rarr; catalog: HoldAvailabilityCommand</li>
+          <li>catalog &rarr; orchestrator: CommandReply</li>
+          <li>orchestrator &rarr; approval: RequestApprovalCommand</li>
+          <li>approval &rarr; orchestrator: CommandReply</li>
+          <li>orchestrator &rarr; payment: AuthorizePaymentCommand</li>
+          <li>payment &rarr; orchestrator: CommandReply</li>
+          <li>orchestrator &rarr; booking: RentalConfirmed</li>
+        </ol>
+      </div>
+      <div class="mode-card choreo">
+        <h3>Choreography <span class="who">each service decides for itself</span></h3>
+        <ol>
+          <li>booking &rarr; <b>catalog</b>: RentalRequested</li>
+          <li>catalog &rarr; approval: AvailabilityHeld</li>
+          <li>approval &rarr; payment: ApprovalGranted</li>
+          <li>payment &rarr; booking: PaymentAuthorized + RentalConfirmed</li>
+          <li class="dim" style="color:var(--text-dim); font-size:0.85em;">no coordinator exists &mdash; each hop is one service's own decision</li>
+        </ol>
+      </div>
+    </div>
+
+    <p style="margin-top:1.4rem;">On failure, the orchestrator walks <b style="color:var(--accent)">backward</b>
+      through everything that already succeeded, in one place. In choreography, every
+      participant that needs to compensate reacts to the same failure event
+      <b style="color:var(--compensate)">independently</b> &mdash; catalog releases its
+      hold, approval marks its record moot, neither aware the other exists. By
+      convention here, catalog-service (the first participant) is also the one that
+      finally declares <code>RentalCancelled</code>, since it's always the last to
+      finish unwinding.</p>
+
+    <div class="callout warn" style="margin-top:1rem;">
+      <p><b>Orchestration's extra trick:</b> a saga-level timeout sweep catches a
+        participant that never replies at all (its container is down, say) &mdash;
+        distinct from approval-service's own per-request timeout for an owner who
+        simply doesn't answer. Choreography has no natural place to put a check like
+        this, since nothing watches the whole saga's clock centrally.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Saga #2, always choreographed</div>
+    <h2>Fulfillment: pickup, return, capture</h2>
+    <div class="diagram">
+      <pre class="mermaid">
+sequenceDiagram
+    participant H as handover-service
+    participant P as payment-service
+    H->>P: PickupConfirmed
+    Note over H: renter returns the item
+    alt no damage
+        H->>P: ReturnConfirmed
+        P->>P: capture full amount
+    else damaged
+        H->>P: DamageClaimFiled
+        P->>P: capture deduction, release remainder
+    end
+      </pre>
+    </div>
+    <p style="margin-top:1rem;">One participant reacting to one upstream service, in a
+      straight line &mdash; not worth an orchestrator either mode. Real teams make this
+      call constantly: recognizing when coordination overhead <em>isn't</em> worth it is
+      as much part of learning this pattern as building it.</p>
+  </section>
+
+  <section>
+    <div class="eyebrow">Message catalog</div>
+    <h2>Every topic, one type each</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Topic</th><th>Payload</th><th>Mode</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>rental.requested</code></td><td>RentalRequested</td><td><span class="mode-pill both">both</span></td></tr>
+          <tr><td><code>rental.confirmed</code> / <code>.cancelled</code></td><td>RentalConfirmed / RentalCancelled</td><td><span class="mode-pill both">both</span></td></tr>
+          <tr><td><code>catalog.commands.*</code>, <code>catalog.replies</code></td><td>HoldAvailabilityCommand, CommandReply&hellip;</td><td><span class="mode-pill orch">orchestration</span></td></tr>
+          <tr><td><code>approval.commands.*</code>, <code>approval.replies</code></td><td>RequestApprovalCommand, CommandReply&hellip;</td><td><span class="mode-pill orch">orchestration</span></td></tr>
+          <tr><td><code>payment.commands.*</code>, <code>payment.replies</code></td><td>AuthorizePaymentCommand, CommandReply&hellip;</td><td><span class="mode-pill orch">orchestration</span></td></tr>
+          <tr><td><code>availability.held</code> / <code>.rejected</code></td><td>AvailabilityHeld / AvailabilityRejected</td><td><span class="mode-pill choreo">choreography</span></td></tr>
+          <tr><td><code>approval.granted</code> / <code>.rejected</code> / <code>.timedout</code></td><td>ApprovalGranted / Rejected / TimedOut</td><td><span class="mode-pill choreo">choreography</span></td></tr>
+          <tr><td><code>payment.authorized</code> / <code>.authorization-failed</code></td><td>PaymentAuthorized / AuthorizationFailed</td><td><span class="mode-pill choreo">choreography</span></td></tr>
+          <tr><td><code>pickup.confirmed</code>, <code>return.confirmed</code>, <code>damage.claim.filed</code></td><td>saga #2 events</td><td><span class="mode-pill both">both</span></td></tr>
+          <tr><td><code>payment.captured</code> / <code>.partially-captured</code></td><td>PaymentCaptured / PartiallyCaptured</td><td><span class="mode-pill both">both</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Run it</div>
+    <h2>Two commands, two worlds</h2>
+    <p><code>SAGA_MODE</code> has no default on purpose &mdash; it drives which
+      <code>@Profile</code>-gated beans activate, and the wrong one silently breaks the
+      saga, so the compose file fails fast instead of guessing.</p>
+    <pre class="code"><span class="c"># orchestration mode (starts orchestrator-service too)</span>
+SAGA_MODE=orchestration docker compose --profile orchestration up --build
+
+<span class="c"># choreography mode (no orchestrator container)</span>
+SAGA_MODE=choreography docker compose up --build</pre>
+    <p class="dim" style="margin-top:0.8rem; font-size:0.88rem;">booking <code>:8080</code> &middot; catalog <code>:8081</code> &middot; approval <code>:8082</code> &middot; payment <code>:8083</code> &middot; handover <code>:8084</code> &middot; orchestrator <code>:8085</code></p>
+  </section>
+
+  <section>
+    <div class="eyebrow">Deterministic failure paths</div>
+    <h2>Things to try</h2>
+    <div class="trylist">
+      <div class="try">
+        <div class="n">01</div>
+        <div>
+          <h4>First-step rejection</h4>
+          <p>Request <code>item-005</code> (seeded permanently unavailable). The saga cancels before ever reaching approval &mdash; nothing to compensate.</p>
+        </div>
+      </div>
+      <div class="try">
+        <div class="n">02</div>
+        <div>
+          <h4>Owner declines</h4>
+          <p>POST <code>{"approved": false}</code> to the decision endpoint. Watch the item become available again.</p>
+        </div>
+      </div>
+      <div class="try">
+        <div class="n">03</div>
+        <div>
+          <h4>Owner never answers</h4>
+          <p>Don't call the decision endpoint. After 60s the sweep times it out and the saga unwinds the same way as a decline.</p>
+        </div>
+      </div>
+      <div class="try">
+        <div class="n">04</div>
+        <div>
+          <h4>Card declined, full backward compensation</h4>
+          <p>Use <code>renterId: "renter-blocked"</code>. Both the hold and the already-granted approval get compensated.</p>
+        </div>
+      </div>
+      <div class="try">
+        <div class="n">05</div>
+        <div>
+          <h4>Approval-service goes dark</h4>
+          <p>Orchestration mode: stop the container mid-saga. After 90s the saga-level backstop compensates on its own.</p>
+        </div>
+      </div>
+      <div class="try">
+        <div class="n">06</div>
+        <div>
+          <h4>Damaged return</h4>
+          <p>Return with <code>{"damaged": true, "deductionAmount": 15.00}</code>. Payment goes to <code>PARTIALLY_CAPTURED</code>, remainder released.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Worth reading the code for</div>
+    <h2>Design notes</h2>
+    <div class="notes">
+      <div class="note">
+        <h4>Holds vs. captures &mdash; PaymentSagaService</h4>
+        <p>Saga #1 only ever authorizes; saga #2 is what actually moves money. Mirrors how real card processors handle hotel and car rentals.</p>
+      </div>
+      <div class="note">
+        <h4>Idempotent compensations &mdash; releaseAvailability, markMoot</h4>
+        <p>Every compensating action is safe to call more than once, or when there's nothing to undo &mdash; a message can always be redelivered.</p>
+      </div>
+      <div class="note">
+        <h4>The ApprovalOutcomePublisher strategy &mdash; approval-service</h4>
+        <p>Approval's outcome doesn't happen synchronously inside a listener &mdash; a human has to act. "Record the request" and "announce the decision" are decoupled, and where the decision goes is abstracted behind one interface with a mode-specific implementation.</p>
+      </div>
+      <div class="note">
+        <h4>Uniform backward compensation &mdash; SagaOrchestrationService</h4>
+        <p>The orchestrator sends CancelApprovalCommand even when approval has nothing left to undo. Real orchestrators don't special-case that &mdash; they walk backward and trust each compensation to be a safe no-op.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Full source, Dockerfiles, and the walkthrough with exact curl commands ship in the
+    delivered project archive &mdash; this page is the map, not the territory.
+  </footer>
+
+</div>

@@ -1,0 +1,41 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: booking-service
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:5432/booking_db
+    username: gearshare
+    password: gearshare
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    consumer:
+      group-id: booking-service
+      auto-offset-reset: earliest
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.gearshare.events.*"
+    producer:
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+# HS256 needs a 256-bit (32-byte) key -- this default is a real, valid Base64-encoded
+# random key, fine for running the project locally. Override it with the JWT_SECRET env
+# var for anything beyond your own machine; never reuse this literal value elsewhere.
+jwt:
+  secret: ${JWT_SECRET:e+q6jjepNeTVuiEfZ0GocmlkjQ2r/6Q4e9PMxcMWYIQ=}
+  expiration-ms: ${JWT_EXPIRATION_MS:3600000}
+
+logging:
+  level:
+    com.gearshare: INFO
